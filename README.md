@@ -22,3 +22,5 @@ Output
 There are two output files; sim1.out and sim1.pvalue. The MCMC output for all parameters is saved in sim1.out. Each column in sim1.out represents the posterior distribution of a particular parameter in the birth and death model. The parameters such as the birth and death rate are estimated by the Bayesian means, i.e., the averages of the columns after discarding the burn-in period. 
 
 The Bayesian p-values (PPP) for all gene families in the dataset are saved in sim1.pvalue. The average of a column in sim1.pvalue is the Bayesian p-values for a particular gene family. Of course, the burn-in period must be discarded.
+
+Citation: Liu, L., L. Yu, V. Kalavacharla, Z. Liu. A Bayesian model for gene family evolution. BMC Bioinformatics. 2011, 12:426
