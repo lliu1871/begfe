@@ -1,5 +1,5 @@
 /*
- *  genedu 1.0
+ *  genedu 1.1
  *
  *  copyright 2009-2011
  *
@@ -342,6 +342,7 @@ void InitialParam (Tree *tree)
 		for(j=0; j<tree->ntaxa; j++){
 			sum = sumsquare = 0.0;
 			for(i=0; i<ngenefamily; i++){
+				if(tree->nodes[tree->root].ngenes[i]==0) continue;
 				x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t); 
 				sum += x;
 				sumsquare += (x*x);
