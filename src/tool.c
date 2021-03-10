@@ -367,6 +367,7 @@ int ReadaTree (FILE *fTree,Tree *tree)
       		}
       		else if (ch==')') { level--;  inodeb=cfather; cfather=tree->nodes[cfather].father; }
       		else if (ch==':') fscanf(fTree,"%lf",&tree->nodes[inodeb].brlens);
+			else if (ch=='#') fscanf(fTree,"%lf",&tree->nodes[inodeb].lambda);
       		else if (ch==',') ;
       		else if (ch==';' && level!=0) 
          	{
@@ -402,6 +403,7 @@ int ReadaTree (FILE *fTree,Tree *tree)
    	for ( ; ; ) {
       		while(isspace(ch=fgetc(fTree)) && ch!=';' );
       		if (ch==':')       fscanf(fTree, "%lf", &tree->nodes[tree->root].brlens);
+			else if (ch=='#')       fscanf(fTree, "%lf", &tree->nodes[tree->root].lambda);
       		else if (ch==';')  break;
       		else  { ungetc(ch,fTree);  break; }
    	}

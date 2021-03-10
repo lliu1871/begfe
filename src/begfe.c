@@ -24,9 +24,6 @@
 
 #include	"begfe.h"
 #include	"tool.h"
-#               if defined (MPI_ENABLED)
-#include        <mpi.h>
-#               endif
 
 void 		InitialParam (Tree *tree);
 double		LikelihoodBD (int s, int c, double lambda, double brlens);
@@ -39,9 +36,8 @@ void 		PrintHeader (void);
 int		    PrintState (int round, FILE *outfile);
 int		    ReadData (FILE *fin);
 int         Reject (int *numreject);
-int 		SimGeneFamily (int inode, int ncopies, Tree *tree, double lambda);
+int 		SimGeneFamily (int inode, int ncopies, Tree *tree);
 int 		SimNcopies (int s, double lambda, double brlens);
-void 		SimNcopiesProb (int s, double lambda, double brlens, int n, double *logprob);
 int			Simulation (Tree *tree);
 
 /*local variables*/
@@ -56,30 +52,12 @@ Chain	 	mcmc;
 int			lambdalink;
 int			sim;
 int			simngene[2];
-double		*simlambda;
-
-#       if defined (MPI_ENABLED)
-int             proc_id;
-int             num_procs;
-#       endif
 
 int main (int argc, char *argv[])
 {
 	FILE *fin;
-	clock_t		previousCPUTime, currentCPUTime;
 
-	
-	previousCPUTime = clock();
-
-#	if defined (MPI_ENABLED)
-		MPI_Init(&argc,&argv);
-        MPI_Comm_rank(MPI_COMM_WORLD,&proc_id);
-        MPI_Comm_size(MPI_COMM_WORLD,&num_procs);
-	if( proc_id == 0) 
-		PrintHeader();
-#	else
-        PrintHeader();
-#	endif
+	PrintHeader();
 
 	fin = (FILE*)gfopen(argv[1],"r");
 	if(ReadData (fin) == ERROR)
@@ -87,7 +65,7 @@ int main (int argc, char *argv[])
 		MrBayesPrint ("Problem in ReadData\n");
 		exit (-1);
 	}
-	fclose (fin);	
+	fclose(fin);	
 
 	if(sim == 1) {
 		if(Simulation (&sptree) == ERROR){
@@ -102,22 +80,13 @@ int main (int argc, char *argv[])
 	}
 	
 	/*free memory*/
-
-#	if defined (MPI_ENABLED)
-	if (proc_id == 0) {
-                fclose (fout); 
-                if (sim == 0)
-                   fclose (fpvalue);
-    	}
-    	MPI_Finalize();
-#	else
-	fclose(fout);
-	if(sim == 0) fclose(fpvalue);
-#       endif
-
-	currentCPUTime = clock();
-	printf("time: %lf", (currentCPUTime - previousCPUTime) / (double) CLOCKS_PER_SEC);
-
+	if(sim == 0){ 
+		fclose(fpvalue);
+		fclose(fout);
+	}else{
+		fclose(fout);
+		fclose(fsim);
+	}
   	return(1);
 }
 
@@ -138,7 +107,7 @@ int Simulation (Tree *tree)
 
 	for(i=0; i<ngenefamily; i++){
 		tree->nodes[tree->root].theta=(int)((rndu()*(simngene[1]-simngene[0]+1))+simngene[0]);
-		SimGeneFamily (tree->root, (int)tree->nodes[tree->root].theta, tree, simlambda[i]);
+		SimGeneFamily (tree->root, (int)tree->nodes[tree->root].theta, tree);
 		//PrintTreeToFile(fout, &sptree);
 		
 		fprintf(fsim, "genefamily%d\tnumber%d", i+1, i+1);
@@ -155,11 +124,10 @@ int Simulation (Tree *tree)
 		}
 	}
 	
-	fprintf(fout, "lambda");
 	for(i=0; i<2*tree->ntaxa-1; i++){
-		if(i != tree->root) fprintf(fout,"contraction<node%d>\tnochange<node%d>\texpansion<node%d>\t",i+1,i+1,i+1);
+		if(i != tree->root) fprintf(fout,"\tcontraction<node%d>\tnochange<node%d>\texpansion<node%d>\t",i+1,i+1,i+1);
 	}
-	fprintf(fout, "\n%lf\t",simlambda[0]);
+	
 	for(i=0; i<2*tree->ntaxa-1; i++){
 		if(i != tree->root) fprintf(fout,"\t%d\t%d\t%d",tree->nodes[i].contraction, tree->nodes[i].nochange, tree->nodes[i].expansion);
 	}
@@ -168,17 +136,17 @@ int Simulation (Tree *tree)
 	return NO_ERROR;
 }
 
-int SimGeneFamily (int inode, int ncopies, Tree *tree, double lambda)
+int SimGeneFamily (int inode, int ncopies, Tree *tree)
 {
 	int son1, son2;
 
 	if(inode >= tree->ntaxa){
 		son1 = tree->nodes[inode].sons[0];
 		son2 = tree->nodes[inode].sons[1];
-		tree->nodes[son1].theta = SimNcopies(ncopies, lambda, tree->nodes[son1].brlens);
-		SimGeneFamily (son1, (int)tree->nodes[son1].theta, tree, lambda);
-		tree->nodes[son2].theta = SimNcopies(ncopies, lambda, tree->nodes[son2].brlens);
- 		SimGeneFamily (son2, (int)tree->nodes[son2].theta, tree, lambda);
+		tree->nodes[son1].theta = SimNcopies(ncopies, tree->nodes[inode].lambda, tree->nodes[son1].brlens);
+		SimGeneFamily (son1, (int)tree->nodes[son1].theta, tree);
+		tree->nodes[son2].theta = SimNcopies(ncopies, tree->nodes[inode].lambda, tree->nodes[son2].brlens);
+ 		SimGeneFamily (son2, (int)tree->nodes[son2].theta, tree);
 	}
 	return NO_ERROR;
 }
@@ -201,31 +169,6 @@ int SimNcopies (int s, double lambda, double brlens)
 	}
             	
 	return (ncopies);
-}
-
-void SimNcopiesProb (int s, double lambda, double brlens, int n, double *logprob)
-{
-	int i, j;
-	int ncopies[100];
-	double prob[100], total = 0.0, random;
-	
-	if(s < 50){
-		for(i=0; i<100; i++) ncopies[i] = i;
-	}else{
-		for(i=0; i<100; i++) ncopies[i] = s - 50 + i + 1;
-	}
-
-	for(i=0; i<100; i++)	prob[i] = LikelihoodBD (s, ncopies[i], lambda, brlens);
-
-	for(j=0; j<n; j++){
-		random = rndu();
-		for(i=0; i<100; i++){
-			if(i == 0) total = prob[i];
-			else total += prob[i];
-			if(random <= total) break;
-		}
-		logprob[j] = log(prob[i]);
-	}	 
 }
 
 int McmcRun (Tree *tree)
@@ -288,8 +231,9 @@ int Reject (int *numreject)
 
     for(i=0; i<ngenefamily; i++){
 	     sptree.nodes[sptree.root].theta = sptree.nodes[sptree.root].ngenes[i];
-	     SimGeneFamily (sptree.root, (int)sptree.nodes[sptree.root].theta, &sptree, sptree.nodes[0].lambda);
-
+	     //SimGeneFamily (sptree.root, (int)sptree.nodes[sptree.root].theta, &sptree, sptree.nodes[0].lambda);
+		 SimGeneFamily (sptree.root, (int)sptree.nodes[sptree.root].theta, &sptree);
+		 
 	     if(LoglikeSimtree (&sptree, &simloglike) == ERROR){
 			printf("ERROR IN REJECTION");
 			return (ERROR);
@@ -372,29 +316,28 @@ void InitialParam (Tree *tree)
                         if(sptree.nodes[i].brlens > maxbrlens)
                         maxbrlens = sptree.nodes[i].brlens;                             
 		}
-
-                for(j=0; j<2*tree->ntaxa-1; j++){
-                        sum = 0.0;
-                        sumsquare = 0.0;
+		
+		for(j=0; j<2*tree->ntaxa-1; j++){
+			sum = 0.0;
+			sumsquare = 0.0;
 			tree->nodes[j].lambda = 0.0;
 
-                        for(i=0; i<ngenefamily; i++){
-                                if(tree->nodes[tree->root].ngenes[i]>0){
- 					x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t);
+			for(i=0; i<ngenefamily; i++){
+				if(tree->nodes[tree->root].ngenes[i]>0){
+					x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t);
 				}else{
 					x = tree->nodes[j].ngenes[i]/sqrt(2*t);
 				}
-                                sum += x;
-                                sumsquare += (x*x);
-                        }
+				sum += x;
+				sumsquare += (x*x);
+			}
 
-                        tree->nodes[j].lambda += (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1); 
+			tree->nodes[j].lambda += (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1); 
 			if(tree->nodes[j].lambda > 1/maxbrlens) tree->nodes[j].lambda = 0.9/maxbrlens;
 			tree->nodes[j].maxlambda = 1.0/maxbrlens;
-                        tree->nodes[j].minlambda = 0.0;
-                        tree->nodes[j].lambdawindow = tree->nodes[j].maxlambda/5;
-                }
-
+			tree->nodes[j].minlambda = 0.0;
+			tree->nodes[j].lambdawindow = tree->nodes[j].maxlambda/5;
+		}
 	}	
 }
 
@@ -403,47 +346,33 @@ int ReadData (FILE *fin)
 	int i, j, index = 0, *speciesindex;
 	time_t t;
 	struct tm *current;
-	char datafile[30], outfile[30], simfile[30], pvaluefile[30];
+	char datafile[30], outfile[50], simfile[50], pvaluefile[50];
 	FILE *fdata; 
 	char string[100], skip[100];
 
 	fscanf(fin,"%d%s%ld%ld%d", &sim, datafile, &seed, &ngenefamily, &(sptree.ntaxa));
 
-
 	if(sim == 0){
            sprintf(outfile, "%s.out", datafile);
            sprintf(pvaluefile,"%s.pvalue", datafile);
-    	}else{
+		   fpvalue = (FILE*)gfopen(pvaluefile,"w");
+		   fout = (FILE*)gfopen(outfile,"w");
+    }else{
 		sprintf(outfile, "%s.true", datafile);
 		sprintf(simfile, "%s", datafile);
 		fsim = (FILE*)gfopen(simfile,"w");
-	}
-
-#	if defined (MPI_ENABLED)
-		if (proc_id == 0) 
-        {
-                    fout = (FILE*)gfopen(outfile,"w");
-                    if(sim == 0) fpvalue = (FILE*)gfopen(pvaluefile,"w");
-        }
-#	else
 		fout = (FILE*)gfopen(outfile,"w");
-		if(sim == 0) fpvalue = (FILE*)gfopen(pvaluefile,"w");
-#	endif
+	}
 
 	/*set seed*/
-	if(seed <= 0)
-	{
+	if(seed <= 0){
 		time(&t);
 		current = localtime(&t);
-#	if defined (MPI_ENABLED)
-		seed = 11*current->tm_hour + 111*current->tm_min + (proc_id+1)*1111*current->tm_sec + 123;
-#	else
 		seed = 11*current->tm_hour + 111*current->tm_min + 1111*current->tm_sec + 123;
-#	endif
+		SetSeed(seed);
+	}else{
 		SetSeed(seed);
 	}
-	else
-		SetSeed(seed);
 
 	/*read the species tree*/
 	ReadaTree(fin, &sptree);
@@ -458,10 +387,7 @@ int ReadData (FILE *fin)
 
 	/*simulation or MCMC*/
 	if(sim == 1){
-		simlambda = (double *)SafeMalloc((size_t)(ngenefamily * sizeof(double)));
 		fscanf(fin,"%d%d", &simngene[0], &simngene[1]);
-		for(i=0; i<ngenefamily; i++)
-			fscanf(fin,"%lf", &simlambda[i]);
 		return NO_ERROR;
 	}else{
 		fscanf(fin,"%d%d%d", &mcmc.numGen, &mcmc.sampleFreq, &lambdalink);
@@ -507,25 +433,15 @@ int ReadData (FILE *fin)
 
 void PrintHeader (void)
 {
-#		if !defined (MPI_ENABLED)
-		MrBayesPrint ("\n\n");
-#		endif
-		MrBayesPrint ("%s            Bayesian estimation of Gene Duplication  \n\n",spacer);
-#		if defined (MPI_ENABLED)
-		MrBayesPrint ("                             (Parallel version)\n");
-		MrBayesPrint ("                         (%d processors available)\n\n", num_procs);
-#		endif
-		srand ((unsigned int)time(NULL));
-			MrBayesPrint ("%s                            by\n\n",spacer);
-			MrBayesPrint ("%s                        Liang Liu\n\n",spacer);
-			MrBayesPrint ("%s       Department of Agriculture and Natural Resources\n",spacer);
-			MrBayesPrint ("%s                    Delaware State University\n",spacer);
-			MrBayesPrint ("%s                         lliu@desu.edu\n\n",spacer);
-		        MrBayesPrint ("%s       Distributed under the GNU General Public License\n\n",spacer);	
+	MrBayesPrint ("%s            Bayesian estimation of Gene Duplication  \n\n",spacer);
+	srand ((unsigned int)time(NULL));
+	MrBayesPrint ("%s                            by\n\n",spacer);
+	MrBayesPrint ("%s                        Liang Liu\n\n",spacer);
+	MrBayesPrint ("%s       Department of Agriculture and Natural Resources\n",spacer);
+	MrBayesPrint ("%s                    Delaware State University\n",spacer);
+	MrBayesPrint ("%s                         lliu@desu.edu\n\n",spacer);
+	MrBayesPrint ("%s       Distributed under the GNU General Public License\n\n",spacer);	
 }
-
-
-
 
 int PrintState (int round, FILE *outfile)
 {
@@ -540,8 +456,8 @@ int PrintState (int round, FILE *outfile)
 	/*print to file*/
 	if(round == 1){
 		gettimeofday(&tv, NULL);
-        	curtime = tv.tv_sec;
-               	strftime(buffer,30,"%T on %m-%d-%Y",localtime(&curtime));
+        curtime = tv.tv_sec;
+        strftime(buffer,30,"%x on %m-%d-%Y",localtime(&curtime));
 		fprintf(outfile, "[This analysis was conducted at local time %s with tree ", buffer);
 		PrintNodeToFile (outfile, &sptree);
 		fprintf(outfile, ". The numbers in the tree are node numbers.]\n");
