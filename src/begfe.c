@@ -402,10 +402,15 @@ int ReadData (FILE *fin)
 		fscanf(fdata, "%s",skip);
 		for(j=0; j<sptree.ntaxa; j++){
 			fscanf(fdata, "%d", &(sptree.nodes[speciesindex[j]].ngenes[index]));
-		}
+		} 
 		index++;
 	}
 
+	if(index < ngenefamily){
+		printf("# of gene families %d != %ld\n", index, ngenefamily);
+		return(ERROR);
+	}
+	
 	free (speciesindex);
 	fclose(fdata);
 	return (NO_ERROR);
