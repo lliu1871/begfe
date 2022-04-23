@@ -4,6 +4,8 @@ This program is free software; you can redistribute it and/or modify it under th
 
 This program implements a Markov Chain Monte Carlo algorithm to estimate the posterior probability distribution of the birth and death rate parameter and the numbers of gene copies at the internodes of the phylogenetic tree.  In addition, BEGFE can simulate gene family data under the birth and death model.
 
+##What is new in version 2.0
+
 Compiling the program 
 To compile the program from source code, type make and hit return under the directory src. 
 
@@ -56,3 +58,7 @@ The Bayesian p-values (PPP) for all gene families in the dataset are saved in si
 Citation: Liu, L., L. Yu, V. Kalavacharla, Z. Liu. A Bayesian model for gene family evolution. BMC Bioinformatics. 2011, 12:426
 
 Old versions BEGFE1.1 is available at https://github.com/lliu1871/oldversion
+
+The Anolis MHC example data set (unpublished as of April 2022) is provided courtesy of Daren Card and Scott Edwards, Harvard University
+
+
