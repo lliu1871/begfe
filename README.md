@@ -4,14 +4,16 @@ This program is free software; you can redistribute it and/or modify it under th
 
 This program implements a Markov Chain Monte Carlo algorithm to estimate the posterior probability distribution of the birth and death rate parameter and the numbers of gene copies at the internodes of the phylogenetic tree.  In addition, BEGFE can simulate gene family data under the birth and death model.
 
-## new features in version 2.0
+## New features in version 2.0
+1. The contrains on the birth rate parameter lambda in the old versions are removed in version 2.0
+2. Provide a warning message if the species names in the data file do not match the names in the control file
+3. Provide a warning message if the number of gene families in the control file > the number of gene families in the data file.
 
 
-
-## Compiling from source code 
+## Compile from source code 
 To compile the program from source code, type make and hit return under the directory src. 
 
-## Running the program
+## Run the program
 ./begfe controlfile
 
 ## Example control files 
