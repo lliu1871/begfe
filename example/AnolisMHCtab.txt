@@ -1,0 +1,5 @@
+ID		Anolis_carolinensis	Anolis_sagrei	Gallus_gallus	Homo_sapiens	Laticauda_laticaudata	Mus_musculus	Naja_naja	Notechis_scutatus	Podarcis_muralis	Pseudonaja_textilis	Salvator_merianae	Sphenodon_punctatus	Taeniopygia_guttata
+No_classI_genes	26	11	2	3	14	19	32	41	17	21	30	4	3
+No_classI_transcripts		56	11	4	12	34	41	74	99	51	52	79	5	19
+No_classII_genes		5	8	5	9	6	8	25	27	18	11	35	7	17
+No_classII_transcripts		8	8	7	29	10	18	60	78	49	37	89	15	52
