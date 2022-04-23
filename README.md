@@ -54,3 +54,5 @@ The Bayesian p-values (PPP) for all gene families in the dataset are saved in si
 
 
 Citation: Liu, L., L. Yu, V. Kalavacharla, Z. Liu. A Bayesian model for gene family evolution. BMC Bioinformatics. 2011, 12:426
+
+Old versions BEGFE1.1 is available at https://github.com/lliu1871/oldversion
