@@ -95,7 +95,6 @@ int Simulation (Tree *tree)
 	for(i=0; i<tree->ntaxa; i++){
 		fprintf(fout,"\t%s", tree->nodes[i].taxaname);
 	}
-	fprintf(fout, "\n");
 
 	for(j=0; j<2*tree->ntaxa-1; j++){
 		tree->nodes[j].contraction = 0;
@@ -108,9 +107,10 @@ int Simulation (Tree *tree)
 		SimGeneFamily (tree->root, (int)tree->nodes[tree->root].theta, tree);
 		//PrintTreeToFile(fout, &sptree);
 		
-		fprintf(fout, "genefamily%d\t", i+1);
-		for(j=0; j<tree->ntaxa; j++) fprintf(fout, "\t%d", (int)tree->nodes[j].theta);
-		fprintf(fout, "\n");
+		fprintf(fout, "\ngenefamily%d\t", i+1);
+		for(j=0; j<tree->ntaxa; j++){ 
+			fprintf(fout, "\t%d", (int)tree->nodes[j].theta);
+		}
 	}
 	return NO_ERROR;
 }
