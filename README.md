@@ -9,7 +9,7 @@ This program implements a Markov Chain Monte Carlo algorithm to estimate the pos
 2. The birth-death probability is calculated using two formulas - one for alpha < 0.5 and another for alpha > 0.5 where alpha = lambda\*brlens / (1+lambda\*brlens)
 3. The program provides a warning message if the species names in the data file do not match the names in the control file
 4. The program rovides a warning message if the number of gene families in the control file > the number of gene families in the data file
-5. The column "NUMBER" is removed in the data file
+5. The second column "NUMBER" is removed in the data file
 
 
 ## Compile from source code 
