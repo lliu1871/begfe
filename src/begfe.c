@@ -423,11 +423,11 @@ int ReadData (FILE *fin)
 
 void PrintHeader (void)
 {
-	printf ("\n%s       Bayesian Estimation of Gene Duplication (version 2.0)  \n\n",spacer);
-	printf ("%s                        Liang Liu\n",spacer);
-	printf ("%s                   University of Georgia\n",spacer);
-	printf ("%s                       lliu@uga.edu\n\n",spacer);
-	printf ("%s         Distributed under the GNU General Public License\n\n",spacer);	
+	MrBayesPrint ("%s       Bayesian Estimation of Gene Duplication (version 2.0)  \n\n",spacer);
+	MrBayesPrint ("%s                        Liang Liu\n",spacer);
+	MrBayesPrint ("%s                   University of Georgia\n",spacer);
+	MrBayesPrint ("%s                       lliu@uga.edu\n\n",spacer);
+	MrBayesPrint ("%s         Distributed under the GNU General Public License\n\n",spacer);	
 }
 
 int PrintState (int round, FILE *outfile)
@@ -438,7 +438,7 @@ int PrintState (int round, FILE *outfile)
 	int i, j, father,contraction, nochange, expansion;
 	
 	/*print to screen*/
-	printf("%s         round %d --------------- loglike: %f\n", spacer, round, curLn);
+	MrBayesPrint ("%s         round %d --------------- loglike: %f\n", spacer, round, curLn);
 	
 	/*print to file*/
 	if(round == 1){
