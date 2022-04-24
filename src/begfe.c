@@ -42,6 +42,7 @@ int			Simulation (Tree *tree);
 
 /*local variables*/
 Tree 		sptree;
+double		maxlambda=1.0, minlambda=0.0, lambda_window=0.1;
 long int	seed=0;
 long int	ngenefamily;
 double		curLn;
@@ -84,7 +85,7 @@ int main (int argc, char *argv[])
 	}else{
 		fclose(fout);
 	}
-  	return(1);
+  	return(NO_ERROR);
 }
 
 int Simulation (Tree *tree)
@@ -127,26 +128,34 @@ int SimGeneFamily (int inode, int ncopies, Tree *tree)
 		tree->nodes[son2].theta = SimNcopies(ncopies, tree->nodes[inode].lambda, tree->nodes[son2].brlens);
  		SimGeneFamily (son2, (int)tree->nodes[son2].theta, tree);
 	}
+	
 	return NO_ERROR;
 }
 
 int SimNcopies (int s, double lambda, double brlens)
 {
-	int ncopies, n;
+	int ncopies = 0, n = 0;
 	double prob, random;
+	
+	/*if s = 0, then ncopies = 0*/
+	if(s == 0){
+		return(ncopies);
+	}
 
-	n = (int)(5*sqrt(2.0*s))+1;
-	if(s < n) ncopies = 0;
-	else ncopies = s - n;
-
+	/*calculate the cumulative birth-death probability*/
 	random = rndu();
-	prob = LikelihoodBD (s, ncopies, lambda, brlens);
- 
+	prob = LikelihoodBD (s, ncopies, lambda, brlens);	
 	while(random > prob){ 
 		ncopies++;
 		prob += LikelihoodBD(s, ncopies, lambda, brlens);
-	}
-            	
+		
+		/*to avoid dead loop*/
+		n++;
+		if(n>s*100){
+			printf("the total probability is not 1.0\n");
+			exit(-1);
+		}
+	}	
 	return (ncopies);
 }
 
@@ -190,12 +199,14 @@ int McmcRun (Tree *tree)
 		}
 
 		if(round % mcmc.sampleFreq == 0 || round == 1 || round == mcmc.numGen){
+			/*print out posterior in file*/
 			PrintState (round, fout);
+			
+			/*calculate Bayesian posterior pvalue*/
 			if(Reject (numreject) == ERROR){
 				printf("Error in Reject function\n");
 				return(ERROR);
-			}
-			
+			}		
 			for(i=0; i<ngenefamily; i++){ 
 				fprintf(fpvalue, "%d\t", numreject[i]);
 			}
@@ -282,14 +293,12 @@ void InitialParam (Tree *tree)
 			}
 			variance += (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1);
 		}
-
 		lambda = variance/tree->ntaxa; 
-		
+		if(lambda > maxlambda){
+			lambda = 0.9 * maxlambda;
+		}
 		for(i=0; i<2*tree->ntaxa-1; i++){
 			tree->nodes[i].lambda = lambda;
-			tree->nodes[i].maxlambda = 1.0;
-			tree->nodes[i].minlambda = 0.0;
-			tree->nodes[i].lambdawindow = 0.1;
 		}
 	}else{
 		t = TreeHeight(tree);
@@ -300,10 +309,7 @@ void InitialParam (Tree *tree)
 		}
 		
 		for(j=0; j<2*tree->ntaxa-1; j++){
-			sum = 0.0;
-			sumsquare = 0.0;
-			tree->nodes[j].lambda = 0.0;
-
+			sum = sumsquare = 0.0;
 			for(i=0; i<ngenefamily; i++){
 				if(tree->nodes[tree->root].ngenes[i]>0){
 					x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t);
@@ -314,11 +320,10 @@ void InitialParam (Tree *tree)
 				sumsquare += (x*x);
 			}
 
-			tree->nodes[j].lambda += (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1); 
-			if(tree->nodes[j].lambda > 1/maxbrlens) tree->nodes[j].lambda = 0.9/maxbrlens;
-			tree->nodes[j].maxlambda = 1.0/maxbrlens;
-			tree->nodes[j].minlambda = 0.0;
-			tree->nodes[j].lambdawindow = tree->nodes[j].maxlambda/5;
+			tree->nodes[j].lambda = (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1); 
+			if(tree->nodes[j].lambda > maxlambda){ 
+				tree->nodes[j].lambda = 0.9 * maxlambda;
+			}
 		}
 	}	
 }
@@ -439,8 +444,8 @@ int PrintState (int round, FILE *outfile)
 	if(round == 1){
 		gettimeofday(&tv, NULL);
         curtime = tv.tv_sec;
-        strftime(buffer,30,"%x on %m-%d-%Y",localtime(&curtime));
-		fprintf(outfile, "[This analysis was conducted at local time %s with tree ", buffer);
+        strftime(buffer,30,"%X on %m-%d-%Y",localtime(&curtime));
+		fprintf(outfile, "[This analysis was conducted at local time %s with seed = %ld and tree ", buffer, seed);
 		PrintNodeToFile (outfile, &sptree);
 		fprintf(outfile, ". The numbers in the tree are node numbers.]\n");
 
@@ -552,12 +557,11 @@ int MoveLambda (Tree *tree)
 	double max, min, window, oldlambda, newlambda, loglike, oldloglike, newloglike, diff, random;
 
 	if(lambdalink == YES){
-		window = tree->nodes[0].lambdawindow;
 		oldlambda = tree->nodes[0].lambda;
 		oldloglike = curLn;
 
-		max = Min(tree->nodes[0].maxlambda, oldlambda+window);
-		min = Max(tree->nodes[0].minlambda, oldlambda-window);
+		max = Min(maxlambda, oldlambda + lambda_window);
+		min = Max(minlambda, oldlambda - lambda_window);
 	
 		newlambda = rndu() * (max-min) + min;
 		for(i=0; i<2*tree->ntaxa-1; i++){
@@ -588,12 +592,11 @@ int MoveLambda (Tree *tree)
 			nodeindex = rndu() * (2*tree->ntaxa - 1);
 		}while(nodeindex == tree->root);
 
-		window = tree->nodes[nodeindex].lambdawindow;
 		oldlambda = tree->nodes[nodeindex].lambda;
 		oldloglike = curLn;
 
-		max = Min(tree->nodes[nodeindex].maxlambda, oldlambda+window);
-		min = Max(tree->nodes[nodeindex].minlambda, oldlambda-window);
+		max = Min(maxlambda, oldlambda + lambda_window);
+		min = Max(minlambda, oldlambda - lambda_window);
 		
 		newlambda = rndu() * (max-min) + min;
 		tree->nodes[nodeindex].lambda = newlambda;

@@ -33,7 +33,7 @@ typedef struct node
 	int		father, nson, sons[2], namenumber;
 	char	taxaname[LSPNAME];
 	int		*ngenes, expansion, contraction, nochange;
-	double	brlens, theta, lambda, maxlambda, minlambda, lambdawindow;
+	double	brlens, theta, lambda;
    	}
 	Treenode;
 typedef struct Tree

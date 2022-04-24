@@ -1,7 +1,7 @@
 # CONFIG
 
 # Choose: mac, windows, or unix
-ARCHITECTURE ?= unix
+ARCHITECTURE ?= windows
 
 # Set MPI=yes for the parallel version
 MPI ?= no

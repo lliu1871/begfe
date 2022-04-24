@@ -71,17 +71,12 @@ double lnchoose (int n, int x)
 	int i;
 	double f=0.0;
 
-	if(n < x)
-	{
+	if(n < x){
 		printf("n must be greater than or equal to x\n");
 		exit(-1);
-	}
-	else if (x == 0 || n == x)
-	{
+	}else if (x == 0 || n == x){
 		return 0.0;
-	}
-	else 
-	{
+	}else {
 		for(i=n; i >= n-x+1; i--)
 			f += (log(i)-log(n-i+1));
 		return f;
@@ -141,7 +136,6 @@ double rndgamma (double s)
            exponential if s=1
 */
    double r=0;
-
 
    if (s<=0)      puts ("jgl gamma..");
    else if (s<1)  r=rndgamma1 (s);
@@ -756,11 +750,9 @@ double TreeHeight (Tree *tree)
 	father = tree->nodes[0].father;
 	treeheight = tree->nodes[0].brlens;
 
-	while(father != tree->root)
-	{
+	while(father != tree->root){
 		treeheight += tree->nodes[father].brlens;
 		father = tree->nodes[father].father;
 	}
 	return (treeheight);
-
 }
