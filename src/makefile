@@ -1,7 +1,7 @@
 # CONFIG
 
 # Choose: mac, windows, or unix
-ARCHITECTURE ?= windows
+ARCHITECTURE ?= unix
 
 # Set MPI=yes for the parallel version
 MPI ?= no
@@ -29,6 +29,7 @@ ifeq ($(strip $(ARCHITECTURE)),mac)
 else 
 ifeq ($(strip $(ARCHITECTURE)), windows)
 	CFLAGS += -DWIN_VERSION
+	CC = gcc.exe
 else 
 ifeq ($(strip $(ARCHITECTURE)), unix)
 	CFLAGS += -DUNIX_VERSION
