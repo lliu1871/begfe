@@ -35,7 +35,7 @@ This will produce two files; sim1 and sim1.true. The simulated gene family datas
 
 ### A control file for analyzing gene family data
 
-The other control file control1 is for carrying out the Bayesian analysis of the gene family data. Type ./begfe control1 and hit return. 
+The other control file control1 is for carrying out the Bayesian analysis of the gene family data. Type ./begfe control and hit return. 
 
 0 #0:analysis, 1:simulation
 sim1 #input file
