@@ -339,45 +339,54 @@ int ReadaTree (FILE *fTree,Tree *tree)
    	ungetc(ch,fTree);
 
    	for (;;) {
-      		ch = fgetc (fTree);
-      		if (ch==EOF) return(-1);
-      		else if (!isgraph(ch) || ch==skips[0] || ch==skips[1]) continue;
-      		else if (ch=='(') {
-         		level++;
-         		cnode=nnode++;
-   
-         		if(nnode > 2*(tree->ntaxa)-1)
-              		{
-                  		printf("check tree: perhaps too many '('s");
-                  		exit(-1);
-              		}
-         		if (cfather>=0) {
-            			tree->nodes[cfather].sons[tree->nodes[cfather].nson++] = cnode;
-            			tree->nodes[cnode].father=cfather;
-         		}
-         		else
-            			tree->root=cnode;
-         		cfather=cnode;
-      		}
-      		else if (ch==')') { level--;  inodeb=cfather; cfather=tree->nodes[cfather].father; }
-      		else if (ch==':') fscanf(fTree,"%lf",&tree->nodes[inodeb].brlens);
-			else if (ch=='#') fscanf(fTree,"%lf",&tree->nodes[inodeb].lambda);
-      		else if (ch==',') ;
-      		else if (ch==';' && level!=0) 
-         	{
-            		printf("; in treefile");
-            		exit(-1);
-         	}
-      		else if (isdigit(ch))
-      		{ 
-         		ungetc(ch, fTree); 
-         		fscanf(fTree,"%d",&inodeb); 
-         		inodeb--;
-         		tree->nodes[inodeb].father=cfather;
-         		tree->nodes[cfather].sons[tree->nodes[cfather].nson++]=inodeb;
-      		}
-		else if (isalpha(ch))
-		{		
+		ch = fgetc (fTree);
+		if (ch==EOF){
+			return NO_ERROR;
+		}else if (!isgraph(ch) || ch==skips[0] || ch==skips[1]){ 
+			continue;
+		}else if (ch=='(') {
+			level++;
+			cnode=nnode++;
+			if(nnode > 2*(tree->ntaxa)-1){
+					printf("check tree: perhaps too many '('s");
+					exit(-1);
+			}
+			if (cfather>=0) {
+					tree->nodes[cfather].sons[tree->nodes[cfather].nson++] = cnode;
+					tree->nodes[cnode].father=cfather;
+			}else{
+					tree->root=cnode;
+			}
+			cfather=cnode;
+		}else if (ch==')') { 
+			level--;  
+			inodeb=cfather; 
+			cfather=tree->nodes[cfather].father; 
+		}else if (ch==':') {
+			if(!fscanf(fTree,"%lf",&tree->nodes[inodeb].brlens)){
+				MrBayesPrint ("%s   Problem reading the control file\n");
+				return ERROR;
+			}
+		}else if (ch=='#') {
+			if(!fscanf(fTree,"%lf",&tree->nodes[inodeb].lambda)){
+				MrBayesPrint ("%s   Problem reading the control file\n");
+				return ERROR;
+			}
+		}else if (ch==','){ 
+			continue;
+		}else if (ch==';' && level!=0) {
+				printf("; in treefile");
+				exit(-1);
+		}else if (isdigit(ch)){ 
+			ungetc(ch, fTree); 
+			if(!fscanf(fTree,"%d",&inodeb)){
+				MrBayesPrint ("%s   Problem reading the control file\n");
+				return ERROR;
+			} 
+			inodeb--;
+			tree->nodes[inodeb].father=cfather;
+			tree->nodes[cfather].sons[tree->nodes[cfather].nson++]=inodeb;
+		}else if (isalpha(ch)){		
 			i = 0;
 			while(ch != ':')
 			{
@@ -391,23 +400,34 @@ int ReadaTree (FILE *fTree,Tree *tree)
 			inodeb = taxa;
 			taxa++;
 		}
-      		if (level<=0) break;
+		if (level<=0) break;
    	}
    
    	for ( ; ; ) {
-      		while(isspace(ch=fgetc(fTree)) && ch!=';' );
-      		if (ch==':')       fscanf(fTree, "%lf", &tree->nodes[tree->root].brlens);
-			else if (ch=='#')       fscanf(fTree, "%lf", &tree->nodes[tree->root].lambda);
-      		else if (ch==';')  break;
-      		else  { ungetc(ch,fTree);  break; }
+		while(isspace(ch=fgetc(fTree)) && ch!=';' );
+		if (ch==':'){
+			if(!fscanf(fTree, "%lf", &tree->nodes[tree->root].brlens)){
+				MrBayesPrint ("%s   Problem reading the control file\n");
+				return ERROR;
+			}
+		}else if (ch=='#'){       
+			if(!fscanf(fTree, "%lf", &tree->nodes[tree->root].lambda)){
+				MrBayesPrint ("%s   Problem reading the control file\n");
+				return ERROR;
+			}
+		}else if (ch==';'){
+			break;
+		}else{ 
+			ungetc(ch,fTree);  
+			break; 
+		}
    	}
 
-   	if(nnode != 2*(tree->ntaxa)-1) 
-	{ 
+   	if(nnode != 2*(tree->ntaxa)-1) { 
 		printf(" # of nodes != %d\n",2*tree->ntaxa-1); 
 		exit(-1);
 	}
-	return (0);
+	return NO_ERROR;
 }
 
 

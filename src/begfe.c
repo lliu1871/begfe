@@ -25,6 +25,12 @@
 #include	"begfe.h"
 #include	"tool.h"
 
+#if defined(PTHREAD_ENABLED)
+#include 	<pthread.h>
+#define 	NUMTHREADS 8
+#endif
+
+
 void 		InitialParam (Tree *tree);
 double		LikelihoodBD (int s, int c, double lambda, double brlens);
 int		    Loglike1tree (Tree *tree, int igene, double *loglike);
@@ -39,13 +45,14 @@ int         Reject (int *numreject);
 int 		SimGeneFamily (int inode, int ncopies, Tree *tree);
 int 		SimNcopies (int s, double lambda, double brlens);
 int			Simulation (Tree *tree);
+int 		Loglike1treeThread (Tree *tree, int igene, double *loglike);
 
 /*local variables*/
 Tree 		sptree;
 double		maxlambda=1.0, minlambda=0.0, lambda_window=0.1;
 long int	seed=0;
 long int	ngenefamily;
-double		curLn;
+double		curLn, *curLnGenetrees;
 FILE		*fout;
 FILE        *fpvalue;
 Chain	 	mcmc;
@@ -62,19 +69,19 @@ int main (int argc, char *argv[])
 	fin = (FILE*)gfopen(argv[1],"r");
 	if(ReadData (fin) == ERROR){
 		MrBayesPrint ("Problem in ReadData\n");
-		exit (-1);
+		return ERROR;
 	}
 	fclose(fin);	
 
 	if(sim == 1) {
 		if(Simulation (&sptree) == ERROR){
-			printf("Errors in MCMCRUN\n");
-			exit(-1);
+			MrBayesPrint ("Errors in MCMCRUN\n");
+			return ERROR;
 		}
 	}else{
 		if(McmcRun (&sptree) == ERROR){
-			printf("Errors in MCMCRUN\n");
-			exit(-1);
+			MrBayesPrint ("Errors in MCMCRUN\n");
+			return ERROR;
 		}
 	}
 	
@@ -83,6 +90,7 @@ int main (int argc, char *argv[])
 		fclose(fpvalue);
 		fclose(fout);
 	}else{
+		free(curLnGenetrees);
 		fclose(fout);
 	}
   	return(NO_ERROR);
@@ -181,9 +189,10 @@ int McmcRun (Tree *tree)
 			printf("ERROR in LOGLIKE1TREE\n");
 			return(ERROR);
 		}
+		curLnGenetrees[i] = loglike;
 		curLn += loglike;
 	}
-	
+
 	/*pick a move*/
 	numnodes = ngenefamily * (tree->ntaxa - 1);
 	numlambda = ngenefamily;
@@ -226,7 +235,6 @@ int Reject (int *numreject)
 
     for(i=0; i<ngenefamily; i++){
 	     sptree.nodes[sptree.root].theta = sptree.nodes[sptree.root].ngenes[i];
-	     //SimGeneFamily (sptree.root, (int)sptree.nodes[sptree.root].theta, &sptree, sptree.nodes[0].lambda);
 		 SimGeneFamily (sptree.root, (int)sptree.nodes[sptree.root].theta, &sptree);
 	     if(LoglikeSimtree (&sptree, &simloglike) == ERROR){
 			printf("ERROR IN REJECTION");
@@ -254,9 +262,11 @@ void InitialParam (Tree *tree)
 	double maxbrlens=0.0, sum=0.0, sumsquare=0.0,t, lambda,x, variance;
 	int *offspring;
 
-	offspring = (int *)SafeMalloc((size_t) (tree->ntaxa * sizeof(int)));
+	//initialize curLnGenetrees
+	curLnGenetrees	= (double *)SafeMalloc((size_t) (ngenefamily * sizeof(double)));
 	
 	//initialize # of gene copies
+	offspring = (int *)SafeMalloc((size_t) (tree->ntaxa * sizeof(int)));
 	for(j=0; j<ngenefamily; j++){
 		for(i=tree->ntaxa; i<2*(tree->ntaxa)-1; i++){
 			//find descendant tips
@@ -277,6 +287,7 @@ void InitialParam (Tree *tree)
 			if(tree->nodes[i].ngenes[j] < 1) tree->nodes[i].ngenes[j] += 1;
 		}
 	}
+	free(offspring);
 	
 	//initialize lambda
 	if(lambdalink == 1){
@@ -337,7 +348,10 @@ int ReadData (FILE *fin)
 	FILE *fdata; 
 	char string[100], skip[100];
 
-	fscanf(fin,"%d%s%ld%ld%d", &sim, datafile, &seed, &ngenefamily, &(sptree.ntaxa));
+	if(fscanf(fin,"%d%s%ld%ld%d", &sim, datafile, &seed, &ngenefamily, &(sptree.ntaxa)) != 5){
+		MrBayesPrint ("%s   Problem reading the control file\n");
+		return ERROR;
+	}
 
 	if(sim == 0){
 		sprintf(outfile, "%s.out", datafile);
@@ -372,10 +386,17 @@ int ReadData (FILE *fin)
 
 	/*simulation or MCMC*/
 	if(sim == 1){
-		fscanf(fin,"%d%d", &simngene[0], &simngene[1]);
-		return NO_ERROR;
+		if(fscanf(fin,"%d%d", &simngene[0], &simngene[1]) != 2){
+			MrBayesPrint ("%s   Problem reading the control file\n");
+			return ERROR;
+		}else{
+			return NO_ERROR;
+		}
 	}else{
-		fscanf(fin,"%d%d%d", &mcmc.numGen, &mcmc.sampleFreq, &lambdalink);
+		if(fscanf(fin,"%d%d%d", &mcmc.numGen, &mcmc.sampleFreq, &lambdalink) != 3){
+			MrBayesPrint ("%s   Problem reading the control file\n");
+			return ERROR;
+		}
 	}
 
 	/*read gene family data*/
@@ -387,9 +408,16 @@ int ReadData (FILE *fin)
 	}
 	for(i=0; i<sptree.ntaxa; i++) speciesindex[i] = -1;
 
-	fscanf(fdata, "%s", skip);
+	if(!fscanf(fdata, "%s", skip)){
+		MrBayesPrint ("%s   Problem reading the control file\n");
+		return ERROR;
+	}
+		
 	for(i=0; i<sptree.ntaxa; i++){
-		fscanf(fdata,"%s",string);
+		if(!fscanf(fdata,"%s",string)){
+			MrBayesPrint ("%s   Problem reading the control file\n");
+			return ERROR;
+		}
 		for(j=0; j<sptree.ntaxa; j++){
 			if(!strcmp(string,sptree.nodes[j].taxaname)){
 				speciesindex[i] = j;
@@ -404,9 +432,15 @@ int ReadData (FILE *fin)
 
 	index = 0;
 	while(!feof(fdata) & (index < ngenefamily)){
-		fscanf(fdata, "%s",skip);
+		if(!fscanf(fdata, "%s",skip)){
+			MrBayesPrint ("%s   Problem reading the control file\n");
+			return ERROR;
+		}
 		for(j=0; j<sptree.ntaxa; j++){
-			fscanf(fdata, "%d", &(sptree.nodes[speciesindex[j]].ngenes[index]));
+			if(!fscanf(fdata, "%d", &(sptree.nodes[speciesindex[j]].ngenes[index]))){
+				MrBayesPrint ("%s   Problem reading the control file\n");
+				return ERROR;
+			}
 		} 
 		index++;
 	}
@@ -506,10 +540,7 @@ int MoveNode (Tree *tree)
 	oldpara = tree->nodes[nodeindex].ngenes[treeindex];
 
 	/*calculate likelihood*/
-	if(Loglike1tree (tree, treeindex, &oldloglike) == ERROR){
-		printf("Error in Loglike1tree\n");
-		return (ERROR);
-	}
+	oldloglike = curLnGenetrees[treeindex];
 
 	/*new parameter value*/
 	if(oldpara == 1){
@@ -520,18 +551,15 @@ int MoveNode (Tree *tree)
 			newpara = oldpara + 1;
 	}else{
 		x = rndu();
-		if (x < 0.333333333)
+		if (x < 0.333333333){
 			newpara = oldpara + 1;
-		else if (0.333333333 < x && x < 0.666666666)
+		}else if (0.333333333 < x && x < 0.666666666){
 			newpara = oldpara - 1;
-		else
+		}else{
 			newpara = oldpara;
+		}
 	}
 	
-	if(newpara == 0){ 
-		printf("hello");
-		exit(-1);
-	}
 	tree->nodes[nodeindex].ngenes[treeindex] = newpara;
 
 	/*new loglikelihood*/	
@@ -543,10 +571,12 @@ int MoveNode (Tree *tree)
 	/*move*/
 	diff = newloglike - oldloglike;
 	random = log(rndu());
-	if(random > diff)
+	if(random > diff){
 		tree->nodes[nodeindex].ngenes[treeindex] = oldpara;
-	else
+	}else{
 		curLn += diff;
+		curLnGenetrees[treeindex] = newloglike;
+	}
 
 	return (NO_ERROR);
 }
@@ -554,7 +584,7 @@ int MoveNode (Tree *tree)
 int MoveLambda (Tree *tree)
 {
 	int i, nodeindex;
-	double max, min, window, oldlambda, newlambda, loglike, oldloglike, newloglike, diff, random;
+	double max, min, oldlambda, newlambda, loglike, oldloglike, newloglike, newloglikegenetree[NGENEFAMILY], diff, random;
 
 	if(lambdalink == YES){
 		oldlambda = tree->nodes[0].lambda;
@@ -574,6 +604,7 @@ int MoveLambda (Tree *tree)
 				printf("ERROR in LOGLIKE1TREE\n");
 				return(ERROR);
 			}
+			newloglikegenetree[i] = loglike;
 			newloglike += loglike;
 		}
 
@@ -583,8 +614,13 @@ int MoveLambda (Tree *tree)
 			for(i=0; i<2*tree->ntaxa-1; i++){
 				tree->nodes[i].lambda = oldlambda;
 			}
+		}else{ 
+			/*update curLn and curLnGenetrees*/
+			curLn += diff;
+			for(i=0; i<ngenefamily; i++){
+				curLnGenetrees[i] = newloglikegenetree[i];
+			}
 		}
-		else curLn += diff;
 	
 	}else{
 		/*pick a node (excluding the tree root) at random*/
@@ -607,13 +643,20 @@ int MoveLambda (Tree *tree)
 				printf("ERROR in LOGLIKE1TREE\n");
 				return(ERROR);
 			}
+			newloglikegenetree[i] = loglike;
 			newloglike += loglike;
 		}
 
 		diff = newloglike - oldloglike;
 		random = log(rndu ());
-		if(random > diff) tree->nodes[nodeindex].lambda = oldlambda;
-		else curLn += diff;
+		if(random > diff){ 
+			tree->nodes[nodeindex].lambda = oldlambda;
+		}else{ 
+			curLn += diff;
+			for(i=0; i<ngenefamily; i++){
+				curLnGenetrees[i] = newloglikegenetree[i];
+			}
+		}
 	}
 
 	return (NO_ERROR);
@@ -651,6 +694,159 @@ double LikelihoodBD (int s, int c, double lambda, double brlens)
 	}
 	return (likelihood);
 }
+
+
+#ifdef NUMTHREADS
+struct ThreadData {
+    int start, stop, igene, threadID;
+    Tree *tree;
+	double *loglikelihood;
+};
+
+void *loglikeThread (void *td) {
+    struct ThreadData* data=(struct ThreadData*) td;
+    int start = data->start;
+    int stop = data->stop;	
+	int igene = data->igene;
+	int threadID = data->threadID;	
+    double* loglike = data->loglikelihood;
+	Tree* tree = data->tree;	
+	int i, father, s, c;
+	double brlens, lambda, likelihood;
+
+	loglike[threadID] = 0.0;
+    for (i=start; i<stop; i++) {
+        if(i != tree->root){
+			father = tree->nodes[i].father; 
+			s = tree->nodes[father].ngenes[igene];
+			c = tree->nodes[i].ngenes[igene];
+			brlens = tree->nodes[i].brlens;
+			lambda = tree->nodes[i].lambda;
+			likelihood = LikelihoodBD (s, c, lambda, brlens);
+ 			loglike[threadID] += log(likelihood);
+		}
+    }
+    return NULL;
+}
+
+int Loglike1tree (Tree *tree, int igene, double *loglike)
+{
+	int i;
+	double loglikelihood[NUMTHREADS];
+    pthread_t thread[NUMTHREADS];
+    struct ThreadData data[NUMTHREADS];
+
+	/*
+        this has the effect of rounding up the number of tasks
+        per thread, which is useful in case ARRAYSIZE does not
+        divide evenly by NUMTHREADS.
+    */
+    int tasksPerThread=(2*(tree->ntaxa)-1)/NUMTHREADS;
+	
+    /* Divide work for threads, prepare parameters */
+    for (i=0; i<NUMTHREADS; i++) {
+        data[i].start=i*tasksPerThread;
+        data[i].stop=(i+1)*tasksPerThread;
+        data[i].tree=tree;
+		data[i].loglikelihood=loglikelihood;
+		data[i].threadID = i;
+		data[i].igene=igene;
+    }
+	
+    /* the last thread must not go past the end of the array */
+    data[NUMTHREADS-1].stop = 2*(tree->ntaxa)-1;
+	
+    /* Launch Threads */
+    for (i=0; i<NUMTHREADS; i++) {
+        pthread_create(&thread[i], NULL, loglikeThread, (void*)&data[i]);
+    }
+
+    /* Wait for Threads to Finish */
+    for (i=0; i<NUMTHREADS; i++) {
+        pthread_join(thread[i], NULL);
+    }
+
+	*loglike = 0.0;
+    /* Display Result */
+    for (i=0; i<NUMTHREADS; i++) {
+		*loglike += loglikelihood[i];
+    }
+	
+	return (NO_ERROR);
+}
+
+void *loglikeSimThread (void *td) {
+    struct ThreadData* data=(struct ThreadData*) td;
+    int start = data->start;
+    int stop = data->stop;	
+	//int igene = data->igene;
+	int threadID = data->threadID;	
+    double* loglike = data->loglikelihood;
+	Tree* tree = data->tree;	
+	int i, father, s, c;
+	double brlens, lambda, likelihood;
+
+	loglike[threadID] = 0.0;
+    for (i=start; i<stop; i++) {
+        if(i != tree->root){
+			father = tree->nodes[i].father; 
+			s = tree->nodes[father].theta;
+			c = tree->nodes[i].theta;
+			brlens = tree->nodes[i].brlens;
+			lambda = tree->nodes[i].lambda;
+			likelihood = LikelihoodBD (s, c, lambda, brlens);
+ 			loglike[threadID] += log(likelihood);
+		}
+    }
+    return NULL;
+}
+
+int LoglikeSimtree (Tree *tree, double *loglike)
+{
+	int i;
+	double loglikelihood[NUMTHREADS];
+    pthread_t thread[NUMTHREADS];
+    struct ThreadData data[NUMTHREADS];
+
+	/*
+        this has the effect of rounding up the number of tasks
+        per thread, which is useful in case ARRAYSIZE does not
+        divide evenly by NUMTHREADS.
+    */
+    int tasksPerThread=(2*(tree->ntaxa)-1)/NUMTHREADS;
+
+    /* Divide work for threads, prepare parameters */
+    for (i=0; i<NUMTHREADS; i++) {
+        data[i].start=i*tasksPerThread;
+        data[i].stop=(i+1)*tasksPerThread;
+        data[i].tree=tree;
+		data[i].loglikelihood=loglikelihood;
+		data[i].threadID = i;
+    }
+	
+    /* the last thread must not go past the end of the array */
+    data[NUMTHREADS-1].stop = 2*(tree->ntaxa)-1;
+	
+    /* Launch Threads */
+    for (i=0; i<NUMTHREADS; i++) {
+        pthread_create(&thread[i], NULL, loglikeSimThread, (void*)&data[i]);
+    }
+
+    /* Wait for Threads to Finish */
+    for (i=0; i<NUMTHREADS; i++) {
+        pthread_join(thread[i], NULL);
+    }
+
+	*loglike = 0.0;
+    /* Display Result */
+    for (i=0; i<NUMTHREADS; i++) {
+		*loglike += loglikelihood[i];
+    }
+	
+	return (NO_ERROR);
+}
+
+#else
 
 int Loglike1tree (Tree *tree, int igene, double *loglike)
 {
@@ -691,11 +887,7 @@ int LoglikeSimtree (Tree *tree, double *loglike)
 	}
 	return (NO_ERROR);
 }
-
-
-
-
-
+#endif	
 
 
 

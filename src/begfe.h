@@ -14,7 +14,7 @@
 #define Min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 
 #define NTAXA         100      /* max # of species */
-#define NGENE         50000      /* max # of loci */
+#define NGENEFAMILY         10000      /* max # of gene families */
 #define MAXROUND	1000000		/* MAX # OF ROUNDS*/
 #define NUM_NOCHANGE	10000		/* # OF ROUNDS THAT NO BIGGER LIKELIHOOD VALUES ARE FOUND*/
 #define LSPNAME       30       /* # characters in sequence names */
