@@ -679,23 +679,15 @@ int LoglikeSimtree (Tree *tree, double *loglike)
 
 	*loglike = 0.0;
 	for(i=0; i<2*(tree->ntaxa)-1; i++){
-		if(i == tree->root) continue;
-
-		father = tree->nodes[i].father; 
-		s = tree->nodes[father].theta;
-		c = (int)tree->nodes[i].theta;
-		brlens = tree->nodes[i].brlens;
-		lambda = tree->nodes[i].lambda;
-		
-		likelihood = LikelihoodBD (s, c, lambda, brlens);
-
-		if(likelihood > 0){ 
+		if(i != tree->root){
+			father = tree->nodes[i].father; 
+			s = tree->nodes[father].theta;
+			c = (int)tree->nodes[i].theta;
+			brlens = tree->nodes[i].brlens;
+			lambda = tree->nodes[i].lambda;
+			likelihood = LikelihoodBD (s, c, lambda, brlens);
 			*loglike += log(likelihood);
-		}else{
-			printf("likelihood == 0\n");
-			exit(-1);
 		}
-	
 	}
 	return (NO_ERROR);
 }
