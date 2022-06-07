@@ -294,17 +294,31 @@ void InitialParam (Tree *tree)
 		t = TreeHeight(tree); 
 		variance = 0.0;
 
-		for(j=0; j<tree->ntaxa; j++){
+		if(ngenefamily > 1){
+			for(j=0; j<tree->ntaxa; j++){
+				sum = sumsquare = 0.0;
+				for(i=0; i<ngenefamily; i++){
+					if(tree->nodes[tree->root].ngenes[i]==0) continue;
+					x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t); 
+					sum += x;
+					sumsquare += (x*x);
+				}
+				variance += (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1);		
+			}
+			lambda = variance/tree->ntaxa;
+		}
+		
+		if(ngenefamily == 1){
 			sum = sumsquare = 0.0;
-			for(i=0; i<ngenefamily; i++){
-				if(tree->nodes[tree->root].ngenes[i]==0) continue;
-				x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t); 
+			for(j=0; j<tree->ntaxa; j++){
+				x = tree->nodes[j].ngenes[0]/sqrt(2*(tree->nodes[tree->root].ngenes[0])*t); 
 				sum += x;
 				sumsquare += (x*x);
 			}
-			variance += (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1);
+			variance = sumsquare/(tree->ntaxa-1) - sum*sum/(tree->ntaxa*(tree->ntaxa-1));
+			lambda = variance;
 		}
-		lambda = variance/tree->ntaxa; 
+
 		if(lambda > maxlambda){
 			lambda = 0.9 * maxlambda;
 		}
