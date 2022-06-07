@@ -1,7 +1,7 @@
 # CONFIG
 
 # Choose: mac, windows, or unix
-ARCHITECTURE ?= windows
+ARCHITECTURE ?= unix
 
 # Set PTHREAD=yes for the parallel version
 PTHREAD ?= yes
