@@ -259,7 +259,7 @@ int Reject (int *numreject)
 void InitialParam (Tree *tree)
 {
 	int i, j, k, n, sum_ngene;
-	double maxbrlens=0.0, sum=0.0, sumsquare=0.0,t, lambda,x, variance;
+	double sum=0.0, sumsquare=0.0, t, lambda, x, variance;
 	int *offspring;
 
 	//initialize curLnGenetrees
@@ -290,67 +290,43 @@ void InitialParam (Tree *tree)
 	free(offspring);
 	
 	//initialize lambda
-	if(lambdalink == 1){
-		t = TreeHeight(tree); 
-		variance = 0.0;
+	t = TreeHeight(tree); 
+	variance = 0.0;
 
-		if(ngenefamily > 1){
-			for(j=0; j<tree->ntaxa; j++){
-				sum = sumsquare = 0.0;
-				for(i=0; i<ngenefamily; i++){
-					if(tree->nodes[tree->root].ngenes[i]==0) continue;
-					x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t); 
-					sum += x;
-					sumsquare += (x*x);
-				}
-				variance += (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1);		
-			}
-			lambda = variance/tree->ntaxa;
-		}
-		
-		if(ngenefamily == 1){
-			sum = sumsquare = 0.0;
-			for(j=0; j<tree->ntaxa; j++){
-				x = tree->nodes[j].ngenes[0]/sqrt(2*(tree->nodes[tree->root].ngenes[0])*t); 
-				sum += x;
-				sumsquare += (x*x);
-			}
-			variance = sumsquare/(tree->ntaxa-1) - sum*sum/(tree->ntaxa*(tree->ntaxa-1));
-			lambda = variance;
-		}
-
-		if(lambda > maxlambda){
-			lambda = 0.9 * maxlambda;
-		}
-		for(i=0; i<2*tree->ntaxa-1; i++){
-			tree->nodes[i].lambda = lambda;
-		}
-	}else{
-		t = TreeHeight(tree);
-        
-		for(i=0; i<2*tree->ntaxa-1; i++){
-                        if(sptree.nodes[i].brlens > maxbrlens)
-                        maxbrlens = sptree.nodes[i].brlens;                             
-		}
-		
-		for(j=0; j<2*tree->ntaxa-1; j++){
+	/*if ngenefamily > 1, lambda is equal to the average variance*/
+	if(ngenefamily > 1){
+		for(j=0; j<tree->ntaxa; j++){
 			sum = sumsquare = 0.0;
 			for(i=0; i<ngenefamily; i++){
-				if(tree->nodes[tree->root].ngenes[i]>0){
-					x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t);
-				}else{
-					x = tree->nodes[j].ngenes[i]/sqrt(2*t);
-				}
+				if(tree->nodes[tree->root].ngenes[i]==0) continue;
+				x = tree->nodes[j].ngenes[i]/sqrt(2*(tree->nodes[tree->root].ngenes[i])*t); 
 				sum += x;
 				sumsquare += (x*x);
 			}
-
-			tree->nodes[j].lambda = (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1); 
-			if(tree->nodes[j].lambda > maxlambda){ 
-				tree->nodes[j].lambda = 0.9 * maxlambda;
-			}
+			variance += (sumsquare - sum*sum/ngenefamily)/(ngenefamily-1);		
 		}
-	}	
+		lambda = variance/tree->ntaxa;
+	}
+
+	/*if ngenefamily = 1, lambda is the variance of gene copy numbers*/	
+	if(ngenefamily == 1){
+		sum = sumsquare = 0.0;
+		for(j=0; j<tree->ntaxa; j++){
+			x = tree->nodes[j].ngenes[0]/sqrt(2*(tree->nodes[tree->root].ngenes[0])*t); 
+			sum += x;
+			sumsquare += (x*x);
+		}
+		variance = sumsquare/(tree->ntaxa-1) - sum*sum/(tree->ntaxa*(tree->ntaxa-1));
+		lambda = variance;
+	}
+
+	if(lambda > maxlambda){
+		lambda = 0.9 * maxlambda;
+	}
+
+	for(i=0; i<2*tree->ntaxa-1; i++){
+		tree->nodes[i].lambda = lambda;
+	}
 }
 
 int ReadData (FILE *fin)
