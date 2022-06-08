@@ -24,11 +24,17 @@ Two control files are included in the package. The control file controlsim is us
 
 ### A control file for simulating gene family data (controlsim)
 1 #0:analysis, 1:simulation
+
 sim1 #output file
+
 -1 #seed, -1:random seed
+
 124 #number of gene families
+
 5 #number of species
+
 (((chimp:6#0.005,human:6#0.005):81#0.005,(mouse:17#0.005,rat:17#0.005):70#0.005):6#0.005,dog:93#0.005)#0.005; #species tree, the numbers after '#' are birth/death rates
+
 5 15 #the number of gene copies at the tree root is simulated from an uniform distribution (5, 15)
 
 To run the simulation, type ./begfe controlsim
