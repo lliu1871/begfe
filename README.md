@@ -29,7 +29,7 @@ sim1 #output file
 
 -1 #random seed
 
-124 #number of gene families to simulate
+100 #number of gene families to simulate
 
 5 #number of species
 
@@ -51,7 +51,7 @@ sim1 #input file
 
 -1 #random seed
 
-124 #number of gene families
+100 #number of gene families
 
 5 #number of species
 
@@ -61,7 +61,19 @@ sim1 #input file
 
 
 ### A second example of analyzing gene family data (AnolisMHC_control.txt)
+0                 #0:analysis, 1:simulation
 
+AnolisMHCtab.txt  #input file
+
+-1                #random seed
+
+4                 #number of gene families
+
+13                #number of species
+
+(((((((Laticauda_laticaudata:32.71005600,(Pseudonaja_textilis:27.60000000,Notechis_scutatus:27.60000000):5.11005600):2.28994400,Naja_naja:35.00000000):132.12419034,(Anolis_carolinensis:66.08013667,Anolis_sagrei:66.08013667):101.04405368):10.87262926,(Podarcis_muralis:148.65977538,Salvator_merianae:148.65977538):29.33704422):73.83363773,Sphenodon_punctatus:251.83045733):27.82651933,(Gallus_gallus:98.04286929,Taeniopygia_guttata:98.04286929):181.61410737):32.24694470,(Mus_musculus:89.82318742,Homo_sapiens:89.82318742):222.08073394);
+
+1000000 1000 0  #number of MCMC generations, save every 100 samples, 0:unlinked (variable) lambdas and 1:linked (single) lambda
 
 
 
