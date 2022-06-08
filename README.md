@@ -22,7 +22,7 @@ To compile the program from source code, type make and hit return under the dire
 ## Example control files 
 Two control files are included in the package. The control file controlsim is used to simulate gene family data. 
 
-### A control file for simulating gene family data
+### A control file for simulating gene family data (controlsim)
 1 #0:analysis, 1:simulation
 sim1 #output file
 -1 #seed, -1:random seed
@@ -35,7 +35,7 @@ To run the simulation, type ./begfe controlsim
 
 This will produce two files; sim1 and sim1.true. The simulated gene family dataset is saved in the file sim1, while sim1.true contains the true values of the parameters in the Bayesian model. 
 
-### A control file for analyzing gene family data
+### A control file for analyzing gene family data (control)
 
 The other control file control1 is for carrying out the Bayesian analysis of the gene family data. Type ./begfe control and hit return. 
 
