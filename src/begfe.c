@@ -142,7 +142,7 @@ int SimGeneFamily (int inode, int ncopies, Tree *tree)
 
 int SimNcopies (int s, double lambda, double brlens)
 {
-	int ncopies = 0, n = 0;
+	int ncopies = 0;
 	double prob, random;
 	
 	/*if s = 0, then ncopies = 0*/
@@ -158,10 +158,9 @@ int SimNcopies (int s, double lambda, double brlens)
 		prob += LikelihoodBD(s, ncopies, lambda, brlens);
 		
 		/*to avoid dead loop*/
-		n++;
-		if(n>s*100){
-			printf("the total probability is not 1.0\n");
-			exit(-1);
+		if(ncopies > s*100){
+			printf("The total probability is not 1.0 when ncopies = %d\n", ncopies);
+			break;
 		}
 	}	
 	return (ncopies);
